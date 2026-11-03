@@ -14,8 +14,7 @@ argument-hint: "[arquivo.cpp/.hpp ou diretório]"
 
 ```bash
 bash .claude/skills/schematize-cpp/scripts/check-cpp.sh .   # lê o código E o build
-cmake --build build --target test-asan     # a suíte sanitizada — o gate NÃO substitui isto
-cmake --build build --target test-ubsan
+ctest --test-dir build --output-on-failure   # suíte sanitizada (build com -fsanitize=address,undefined, como no template de CI) — o gate NÃO substitui isto
 clang-tidy -p build src/*.cpp
 ```
 

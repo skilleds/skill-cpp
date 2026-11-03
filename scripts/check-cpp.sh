@@ -18,7 +18,7 @@ while IFS= read -r -d '' f; do fontes+=("$f"); done < <(
 )
 builds=()
 while IFS= read -r -d '' f; do builds+=("$f"); done < <(
-  find "$raiz" -maxdepth 3 -type f \( -name 'CMakeLists.txt' -o -name 'Makefile' -o -name 'makefile' -o -name 'meson.build' \) \
+  find "$raiz" -maxdepth 3 -type f \( -name 'CMakeLists.txt' -o -name 'Makefile' -o -name 'makefile' -o -name 'meson.build' -o -name '*.cmake' -o -name 'CMakePresets.json' -o -path '*/.github/workflows/*.yml' \) \
     -not -path '*/.git/*' -print0 2>/dev/null
 )
 
@@ -29,9 +29,10 @@ fi
 
 # ------------------------------------------------------------------ 1. o build
 if [ "${#builds[@]}" -eq 0 ]; then
-  avisos+=("sem Makefile/CMakeLists/meson no topo — não deu para conferir as flags do piso (piso.md secao 3)")
+  avisos+=("sem Makefile/CMakeLists/meson/preset/workflow — não deu para conferir as flags do piso (piso.md secao 3)")
 else
-  todos="$(cat "${builds[@]}" 2>/dev/null)"
+  # comentário (#...) NÃO conta como flag: `# -fsanitize=address` não é sanitizer ligado
+  todos="$(cat "${builds[@]}" 2>/dev/null | sed -E 's/(^|[[:space:]])#.*$//')"
   grep -qE '\-Werror' <<< "$todos" \
     || erros+=("build sem \`-Werror\` — aviso que não quebra o build vira ruído em três semanas (piso.md secao 3)")
   grep -qE '\-Wall' <<< "$todos" || erros+=("build sem \`-Wall\`")
@@ -44,18 +45,18 @@ else
     || avisos+=("build sem \`-D_GLIBCXX_ASSERTIONS\` — liga a checagem de precondição da libstdc++ (custa pouco, pega muito)")
   grep -qE 'std=c\+\+(2[0-9]|1[7-9])' <<< "$todos" \
     || avisos+=("build sem \`-std=c++20\`+ explícito — nunca dependa do default do compilador")
-  grep -qE 'fsanitize=address' <<< "$todos" \
+  grep -qE 'fsanitize=([a-z-]+,)*address' <<< "$todos" \
     || erros+=("nenhum alvo com \`-fsanitize=address\` — a suíte tem de rodar sanitizada (piso.md secao 2)")
-  grep -qE 'fsanitize=undefined' <<< "$todos" \
+  grep -qE 'fsanitize=([a-z-]+,)*undefined' <<< "$todos" \
     || erros+=("nenhum alvo com \`-fsanitize=undefined\` — UB não estoura sozinho: ele funciona por dois anos e falha no dia errado")
-  if grep -qE 'fsanitize=undefined' <<< "$todos" && ! grep -qE 'fno-sanitize-recover' <<< "$todos"; then
+  if grep -qE 'fsanitize=([a-z-]+,)*undefined' <<< "$todos" && ! grep -qE 'fno-sanitize-recover' <<< "$todos"; then
     erros+=("UBSan **sem** \`-fno-sanitize-recover=all\` — ele IMPRIME e CONTINUA, e o CI segue verde com o defeito no log (é o erro nº 1 de quem já usa UBSan)")
   fi
   if grep -qE '_FORTIFY_SOURCE' <<< "$todos" && ! grep -qE '\-O[123s]' <<< "$todos"; then
     avisos+=("\`_FORTIFY_SOURCE\` sem \`-O1\`+ — em \`-O0\` ele NÃO faz nada")
   fi
-  grep -qE 'fsanitize=address' <<< "$todos" && grep -qE 'fsanitize=thread' <<< "$todos" \
-    && grep -qE 'fsanitize=address.*fsanitize=thread|fsanitize=thread.*fsanitize=address' <<< "$todos" \
+  grep -qE 'fsanitize=([a-z-]+,)*address' <<< "$todos" && grep -qE 'fsanitize=([a-z-]+,)*thread' <<< "$todos" \
+    && grep -qE 'fsanitize=[a-z,-]*address[a-z,-]*thread|fsanitize=[a-z,-]*thread[a-z,-]*address|fsanitize=address.*fsanitize=thread|fsanitize=thread.*fsanitize=address' <<< "$todos" \
     && erros+=("ASan e TSan no MESMO alvo — eles não convivem; são dois jobs")
 fi
 

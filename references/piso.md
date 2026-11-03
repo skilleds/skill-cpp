@@ -71,6 +71,7 @@ E o build:
 -std=c++20 -Wall -Wextra -Werror -Wconversion -Wshadow -Wold-style-cast
 -Wnon-virtual-dtor -Woverloaded-virtual -Wnull-dereference
 -D_GLIBCXX_ASSERTIONS -D_FORTIFY_SOURCE=3 -fstack-protector-strong
+-fPIE -pie -Wl,-z,relro,-z,now,-z,noexecstack
 ```
 
 - **`-D_GLIBCXX_ASSERTIONS`** liga a checagem de precondição da libstdc++ (`vector::operator[]` fora
